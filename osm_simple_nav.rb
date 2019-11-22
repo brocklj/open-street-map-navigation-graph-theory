@@ -7,7 +7,7 @@ class OSMSimpleNav
 	# Creates an instance of navigation. No input file is specified in this moment.
 	def initialize
 		# register
-		@load_cmds_list = ['--load']
+		@load_cmds_list = ['--load', '--load-comp']
 		@actions_list = ['--export']
 
 		@usage_text = <<-END.gsub(/^ {6}/, '')
@@ -76,7 +76,7 @@ class OSMSimpleNav
 	# Load graph from OSM file. This methods loads graph and create +Graph+ as well as +VisualGraph+ instances.
 	def load_graph
 		graph_loader = GraphLoader.new(@map_file, @highway_attributes)
-		@graph, @visual_graph = graph_loader.load_graph()
+		@graph, @visual_graph = graph_loader.load_graph(@load_cmd)
 	end
 
 	# Load graph from Graphviz file. This methods loads graph and create +Graph+ as well as +VisualGraph+ instances.
@@ -95,11 +95,9 @@ class OSMSimpleNav
 	    #@highway_attributes = ['residential', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified']
 	    @highway_attributes = ['residential', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified']
 	    #@highway_attributes = ['residential']
-	    if file_type(@map_file) == "osm" or file_type(@map_file) == "xml" then
-	    	puts "OSM not supported!"
-	    	usage
-	    	exit 1
-	    	# load_graph
+		if file_type(@map_file) == "osm" or file_type(@map_file) == "xml" then
+			# load graph
+			load_graph
 	    elsif file_type(@map_file) == "dot" or file_type(@map_file) == "gv" then
 	    	import_graph
 	    else

@@ -76,7 +76,162 @@ class GraphLoader
 	# Method to load graph from OSM file and create +Graph+ and +VisualGraph+ instances from +self.filename+
 	#
 	# @return [+Graph+, +VisualGraph+]
-	def load_graph()
-		# TODO
+	def load_graph(load_cmd)
+		ProcessLogger.log("Loading graph from GraphViz file #{@filename}.")
+
+		# Load OSM from XML
+		osm = File.open(@filename) { |f| Nokogiri::XML(f) }
+
+		# aux data structures
+		hash_of_vertices = {}
+		list_of_edges = []
+		hash_of_visual_vertices = {}
+		list_of_visual_edges = []	
+
+		osm.at_xpath("//osm")
+
+		ways = osm.xpath("//way")		
+		ways.each do |way| 
+			way_tags = way.xpath("tag")
+
+			# Check whether current way is according to @highway_attributes	
+			tag_highway = way_tags.at_css("[@k='highway']")
+			highway_type = tag_highway.nil? ? nil : tag_highway["v"]  
+			unless (@highway_attributes.include?(highway_type))
+				next
+			end
+			
+			# gets speed whether is set or assign 50 as default
+			tag_maxspeed = way_tags.at_css("[@k='maxspeed']")
+			speed = tag_maxspeed.nil? ? 50 : tag_maxspeed["v"].to_i
+
+			# gets value wheter is oneway
+			tag_oneway = way_tags.css("[@k='oneway']")
+			is_one_way = tag_oneway.nil? && tag_oneway["v"] != "yes" ? false : true 
+
+			way_nds = way.xpath("nd")
+			way_nds.count.times do |nd_index| 
+				
+				vid_from =  way_nds[nd_index]["ref"]
+				vid_to = way_nds[nd_index + 1].nil? ? nil : way_nds[nd_index + 1]["ref"]
+			
+				if vid_from && vid_to
+					v1 = hash_of_vertices.has_key?(vid_from) ? hash_of_vertices[vid_from] : Vertex.new(vid_from) 
+					unless hash_of_vertices.has_key?(vid_from)
+						hash_of_vertices[vid_from] = v1 
+						ProcessLogger.log("\t Vertex #{vid_from} loaded")
+					end
+
+					v2 = hash_of_vertices.has_key?(vid_to) ? hash_of_vertices[vid_to] : Vertex.new(vid_to) 
+					unless hash_of_vertices.has_key?(vid_to)
+						hash_of_vertices[vid_to] = v2 
+						ProcessLogger.log("\t Vertex #{vid_to} loaded")
+					end
+
+					edge = Edge.new(v1, v2, speed, is_one_way)
+					list_of_edges << edge
+				end
+			end
+		end
+
+		if load_cmd == "--load-comp"
+			list_of_edges, hash_of_vertices = _process_comp(list_of_edges, hash_of_vertices)
+		end
+
+		# process visual vertices	
+		ProcessLogger.log("Processing vertices")
+		nodes = osm.xpath("//node")
+		nodes.each do |node|
+			vid = node["id"]
+			unless hash_of_vertices.has_key?(vid)
+				next
+			end
+
+			vertex = hash_of_vertices[vid]
+			lat = node["lat"]
+			lon = node["lon"]
+			x = lon.to_f * 100
+			y = lat.to_f * 100
+					
+			hash_of_visual_vertices[vid] = VisualVertex.new(vid, vertex, lat, lon, y, x)
+			ProcessLogger.log("\t Visual vertex #{vid} in ")			
+		end
+		
+		# process visual edges
+		list_of_edges.each do |edge|		
+			v1 = hash_of_visual_vertices[edge.v1.id] if hash_of_visual_vertices.has_key?(edge.v1.id)
+			v2 = hash_of_visual_vertices[edge.v2.id] if hash_of_visual_vertices.has_key?(edge.v2.id)
+			
+			list_of_visual_edges << VisualEdge.new(edge, v1, v2)
+		end
+		
+		# get bounds hash from OSM
+		osm_bounds = osm.at_xpath("//bounds")
+		bounds = {:minlat => osm_bounds["minlat"], :minlon => osm_bounds["minlon"], :maxlat => osm_bounds["maxlat"], :maxlon => osm_bounds["maxlon"]}
+		# multiply each bound by 100
+		bounds.map {|key, val|  bounds[key] = val.to_f * 100 }
+
+		# puts "hash_of_vertices: #{hash_of_vertices.count}, list_of_edges: #{list_of_edges.count}"
+		# puts "hash_of_visual_vertices: #{hash_of_visual_vertices.count}, list_of_visual_edges: #{list_of_visual_edges.count}"
+		
+		g = Graph.new(hash_of_vertices, list_of_edges)
+		vg = VisualGraph.new(g, hash_of_visual_vertices, list_of_visual_edges, bounds)
+
+		return g, vg	
+	end
+
+	# implement DFS in order to get the greatest component
+	# @return greatest component
+	def _process_comp(list_of_edges, hash_of_vertices)
+		list_of_components = []
+		# list of IDs visited vertices
+		visited_edges = []	
+
+		discovered_vertices = []
+		
+		list_of_edges.each do |edge|
+			if visited_edges.include?(edge)
+				next
+			end
+		
+			component = _perform_comp_search(list_of_edges, edge)
+			list_of_components << component
+
+			visited_edges = visited_edges.concat(component)
+		end
+
+		comp_list_of_edges = []
+		list_of_components.each do |comp|
+			if comp.length >=  comp_list_of_edges.length
+				comp_list_of_edges = comp
+			end
+		end
+
+		comp_vertices_edges = {}
+		comp_list_of_edges.each do |e| 
+			comp_vertices_edges[e.v1.id] = e
+			comp_vertices_edges[e.v2.id] = e
+		end
+
+		comp_hash_of_vertices = hash_of_vertices.select { |key, v| comp_vertices_edges.has_key?(key)}
+		
+		return comp_list_of_edges, comp_hash_of_vertices					
+	end
+
+	def _perform_comp_search(list_of_edges, edge, component = [])
+		v1 = edge.v1
+		v2 = edge.v2		
+		
+		connected_edges = list_of_edges.select {|e| (v1.id == e.v1.id || v1.id == e.v2.id || v2.id == e.v1.id || v2.id == e.v2.id ) }
+		connected_edges.length.times do |i| 			
+			e = connected_edges[i]
+			if !component.include?(e)
+				component << e				
+				_perform_comp_search(list_of_edges, e, component)
+			end			
+			
+		end
+
+		return component		
 	end
 end

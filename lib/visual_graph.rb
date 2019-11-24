@@ -43,7 +43,7 @@ class VisualGraph
 
     # append all edges
 	  @visual_edges.each { |edge| 
-    	graph_viz_output.add_edges( edge.v1.id, edge.v2.id, 'arrowhead' => 'none' )
+    	graph_viz_output.add_edges( edge.v1.id, edge.v2.id, {'arrowhead' => 'none', 'label' => edge.length.to_i} )
 	  }
 
     # export to a given format

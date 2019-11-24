@@ -161,8 +161,8 @@ class GraphLoader
 		list_of_edges.each do |edge|		
 			v1 = hash_of_visual_vertices[edge.v1.id] if hash_of_visual_vertices.has_key?(edge.v1.id)
 			v2 = hash_of_visual_vertices[edge.v2.id] if hash_of_visual_vertices.has_key?(edge.v2.id)
-			
-			list_of_visual_edges << VisualEdge.new(edge, v1, v2)
+			lenght = _calc_geo_distance(v1.lon.to_f, v1.lat.to_f, v2.lon.to_f, v2.lat.to_f)
+			list_of_visual_edges << VisualEdge.new(edge, v1, v2, lenght) if v1 && v2
 		end
 		
 		# get bounds hash from OSM
@@ -233,5 +233,26 @@ class GraphLoader
 		end
 
 		return component		
+	end
+
+	# Calculates geographical distance between nodes
+	# @return destance in meters 
+	def	_calc_geo_distance(lon1, lat1, lon2, lat2)
+		# Radius of the Earth [km]
+		r = 6371 
+		d_lat = _deg2rad(lat1-lat2)
+		d_lon = _deg2rad(lon1-lon2)
+		a = Math.sin(d_lat/2) * Math.sin(d_lat/2) +
+		Math.cos(_deg2rad(lat1)) * Math.cos(_deg2rad(lat2)) *
+		Math.sin(d_lon/2) * Math.sin(d_lon/2)
+
+
+		c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+		d = r * c
+		return d * 1000
+	end
+
+	def _deg2rad(deg)
+		return deg * Math::PI / 180
 	end
 end

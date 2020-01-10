@@ -161,8 +161,8 @@ class GraphLoader
 		list_of_edges.each do |edge|		
 			v1 = hash_of_visual_vertices[edge.v1.id] if hash_of_visual_vertices.has_key?(edge.v1.id)
 			v2 = hash_of_visual_vertices[edge.v2.id] if hash_of_visual_vertices.has_key?(edge.v2.id)
-			lenght = _calc_geo_distance(v1.lon.to_f, v1.lat.to_f, v2.lon.to_f, v2.lat.to_f)
-			list_of_visual_edges << VisualEdge.new(edge, v1, v2, lenght) if v1 && v2
+			edge.length = _calc_geo_distance(v1.lon.to_f, v1.lat.to_f, v2.lon.to_f, v2.lat.to_f)
+			list_of_visual_edges << VisualEdge.new(edge, v1, v2) if v1 && v2
 		end
 		
 		# get bounds hash from OSM

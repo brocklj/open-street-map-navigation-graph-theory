@@ -50,4 +50,39 @@ class VisualGraph
     format_sym = export_filename.slice(export_filename.rindex('.')+1,export_filename.size).to_sym
     graph_viz_output.output( format_sym => export_filename )
   end
+
+  #show nodes
+  def show_nodes
+    @visual_vertices.each do |k, v|
+      print "#{v.id}: #{v.lat}, #{v.lon} \n"
+
+    end 
+  end
+
+  def find_path_for_id(id_start, id_stop)
+
+    start_vertex = @visual_vertices[id_start]
+    end_vertex = @visual_vertices[id_stop]
+
+    p start_vertex
+    p end_vertex
+
+  end
+
+  def find_path_for_coordinates(lat_start, lon_start, lat_end, lon_end)
+    p lat_start
+    p lon_start
+    p lat_end
+    p lon_end
+
+  end
+
+  def find_vehicle_path(lat_start, lon_start, lat_end, lon_end)
+    p lat_start
+    p lon_start
+    p lat_end
+    p lon_end
+
+  end
+
 end

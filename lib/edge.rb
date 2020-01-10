@@ -8,6 +8,9 @@ class Edge
   attr_reader :max_speed
   # Indicator of on direction edge - i.e. can be passed only from +v1+ to +v2+
   attr_reader :one_way
+  # Float value of the geographical distance between two vertices
+  attr_reader :length
+  attr_writer :length
 
   # create instance of +self+ by simple storing of all parameters
   def initialize(v1, v2, max_speed, one_way)

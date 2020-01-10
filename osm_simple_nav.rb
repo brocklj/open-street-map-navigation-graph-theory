@@ -8,7 +8,7 @@ class OSMSimpleNav
 	def initialize
 		# register
 		@load_cmds_list = ['--load', '--load-comp']
-		@actions_list = ['--export']
+		@actions_list = ['--export', '--show-nodes', '--midist']
 
 		@usage_text = <<-END.gsub(/^ {6}/, '')
 	  	Usage:\truby osm_simple_nav.rb <load_command> <input.IN> <action_command> <output.OUT> 
@@ -55,6 +55,28 @@ class OSMSimpleNav
 
 		# possibly load other parameters of the action
 		if @operation == '--export'
+		end
+
+		if @operation == '--show-nodes'
+			if ARGV.length <= 3
+				@id_start = ARGV.shift
+				@id_stop = ARGV.shift
+			elsif ARGV.length <= 5
+				@lat_start = ARGV.shift
+				@lon_start = ARGV.shift
+
+				@lat_end = ARGV.shift
+				@lon_end = ARGV.shift
+			end
+
+		end
+
+		if @operation = '--midist'
+			@lat_start = ARGV.shift
+			@lon_start = ARGV.shift
+
+			@lat_end = ARGV.shift
+			@lon_end = ARGV.shift
 		end
 
 		# load output file
@@ -107,9 +129,27 @@ class OSMSimpleNav
 		
 		# perform the operation
 	    case @operation
-	      when '--export'
-	      	@visual_graph.export_graphviz(@out_file)
-	      	return
+	    	when '--export'
+				@visual_graph.export_graphviz(@out_file)
+				return
+			when '--show-nodes'
+				@visual_graph.show_nodes
+
+				if @id_start  != nil && @id_stop != nil
+					@visual_graph.find_path_for_id(@id_start, @id_stop)
+					
+				else
+
+					@visual_graph.find_path_for_coordinates(@lat_start, @lon_start, @lat_end, @lon_end)
+				end
+				return
+			when '--midist'
+				# finds and draws route for vehicle
+				# TODO: consider one-way routes
+				# TODO: show way duration
+				@visual_graph.find_vehicle_path(@lat_start, @lon_start, @lat_end, @lon_end)
+
+			return
 	      else
 	        usage
 	        exit 1

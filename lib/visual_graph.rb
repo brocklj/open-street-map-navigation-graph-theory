@@ -52,11 +52,19 @@ class VisualGraph
       arrowhead = edge.edge.one_way ? "vee arrowsize=3" : "none" 
       color = edge.emphesized ? "orange" : "black"  
 
-    	graph_viz_output.add_edges( edge.v1.id, edge.v2.id, {'arrowhead' => arrowhead, 'penwidth' => penwidth, 'color' => color} )
+    	graph_viz_output.add_edges( edge.v1.id, edge.v2.id, {'arrowhead' => "none", 'penwidth' => penwidth, 'color' => color} )
 	  }
 
     # export to a given format
     format_sym = export_filename.slice(export_filename.rindex('.')+1,export_filename.size).to_sym
+
+    if !@path_distance.nil? || !@path_time.nil?
+    graph_viz_output.add_label("label" => "distance: #{@path_distance} meters \n time: #{@path_time} seconds",                              
+                                "penwidth" => "0",
+                                "color" => "orange"
+                              )
+    end
+
     graph_viz_output.output( format_sym => export_filename )
   end
 
@@ -68,13 +76,12 @@ class VisualGraph
     end 
   end
 
-  def find_path_for_id(id_v_start, id_v_end)
+  def show_nodes_for_id(id_v_start, id_v_end)
 
     start_v = visual_vertices[id_v_start]
     end_v = visual_vertices[id_v_end]
 
-    start_v.selected = true
-    end_v.selected = true
+    _mark_vertices(start_v, end_v)
   end
 
   def show_nodes_for_coordinates(lat_start, lon_start, lat_end, lon_end)
@@ -88,22 +95,44 @@ class VisualGraph
 
   def find_vehicle_path(lat_start, lon_start, lat_end, lon_end)
     start_v, end_v = _find_close_vertices(lat_start, lon_start, lat_end, lon_end)
+    _mark_vertices(start_v, end_v)
 
     path = _find_shortest_path(start_v.id, end_v.id)
-    _mark_visual_edges(path)
-
-    start_v.color = "green"
-    end_v.color = "red"
-    start_v.selected = true
-    end_v.selected = true
+    dis, time = _process_path(path)
+    @path_time = time
+    @path_distance = dis
+    print "------------------------- \n"
+    print "INFO: duration\n"
+    print dis.to_s + " meters \n"
+    print time.to_s + " seconds"
   end
 
-  def _mark_visual_edges(path)
+ def _mark_vertices(start_v, end_v)
+  start_v.color = "green"
+  end_v.color = "red"
+  start_v.selected = true
+  end_v.selected = true
 
+end
+
+  # @return path time duration [seconds]
+  def _process_path(path)
+    time = 0.0
+    # distance in meters
+    dis = 0
      # Mark emphersized visual edges   
     path.each do |v1, v2|
-      @graph.edge_map[v1][v2].emphesized = true if graph.edge_map[v1] != nil
+      if graph.edge_map[v1] != nil
+        v_edge = @graph.edge_map[v1][v2] 
+        v_edge.emphesized = true
+        # converts to m/s
+        max_speed = v_edge.edge.max_speed * 0.27778
+        length = v_edge.edge.length
+        dis += length
+        time += length / max_speed
+      end
     end
+    return dis.round(2), time.round(2)
   end
 
   

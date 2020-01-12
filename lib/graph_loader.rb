@@ -105,10 +105,10 @@ class GraphLoader
 			tag_maxspeed = way_tags.at_css("[@k='maxspeed']")
 			speed = tag_maxspeed.nil? ? 50 : tag_maxspeed["v"].to_i
 
-			# gets value wheter is oneway
-			tag_oneway = way_tags.css("[@k='oneway']")
-			is_one_way = tag_oneway.nil? && tag_oneway["v"] != "yes" ? false : true 
-
+			# gets value whether is oneway
+			tag_oneway = way_tags.at_css("[@k='oneway']")
+			is_one_way = !tag_oneway.nil? && tag_oneway["v"] == "yes" ?  true : false 						
+			
 			way_nds = way.xpath("nd")
 			way_nds.count.times do |nd_index| 
 				
@@ -156,13 +156,29 @@ class GraphLoader
 			hash_of_visual_vertices[vid] = VisualVertex.new(vid, vertex, lat, lon, y, x)
 			ProcessLogger.log("\t Visual vertex #{vid} in ")			
 		end
-		
+		edge_map = {}
 		# process visual edges
 		list_of_edges.each do |edge|		
 			v1 = hash_of_visual_vertices[edge.v1.id] if hash_of_visual_vertices.has_key?(edge.v1.id)
 			v2 = hash_of_visual_vertices[edge.v2.id] if hash_of_visual_vertices.has_key?(edge.v2.id)
 			edge.length = _calc_geo_distance(v1.lon.to_f, v1.lat.to_f, v2.lon.to_f, v2.lat.to_f)
-			list_of_visual_edges << VisualEdge.new(edge, v1, v2) if v1 && v2
+			v_edge = VisualEdge.new(edge, v1, v2) if v1 && v2
+			list_of_visual_edges << v_edge
+
+			# process to edge_map
+			if edge_map.has_key?(edge.v1.id)
+				edge_map[edge.v1.id][edge.v2.id] = v_edge
+			else
+				edge_map[edge.v1.id] = { edge.v2.id => v_edge }
+			end	
+			
+			if edge.one_way == false 
+				if edge_map.has_key?(edge.v2.id)
+					edge_map[edge.v2.id][edge.v1.id] = v_edge
+				else
+					edge_map[edge.v2.id] = { edge.v1.id => v_edge }
+				end	
+			end
 		end
 		
 		# get bounds hash from OSM
@@ -174,7 +190,7 @@ class GraphLoader
 		# puts "hash_of_vertices: #{hash_of_vertices.count}, list_of_edges: #{list_of_edges.count}"
 		# puts "hash_of_visual_vertices: #{hash_of_visual_vertices.count}, list_of_visual_edges: #{list_of_visual_edges.count}"
 		
-		g = Graph.new(hash_of_vertices, list_of_edges)
+		g = Graph.new(hash_of_vertices, list_of_edges, edge_map)
 		vg = VisualGraph.new(g, hash_of_visual_vertices, list_of_visual_edges, bounds)
 
 		return g, vg	

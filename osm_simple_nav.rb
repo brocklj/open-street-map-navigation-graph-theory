@@ -71,7 +71,7 @@ class OSMSimpleNav
 
 		end
 
-		if @operation = '--midist'
+		if @operation == '--midist'
 			@lat_start = ARGV.shift
 			@lon_start = ARGV.shift
 
@@ -133,15 +133,18 @@ class OSMSimpleNav
 				@visual_graph.export_graphviz(@out_file)
 				return
 			when '--show-nodes'
-				@visual_graph.show_nodes
+				
+				@visual_graph.show_nodes if @out_file == nil
 
 				if @id_start  != nil && @id_stop != nil
-					@visual_graph.find_path_for_id(@id_start, @id_stop)
+					@visual_graph.show_nodes_for_id(@id_start, @id_stop)
 					
-				else
+				elsif @lat_start != nil && @lon_start != nil && @lat_end != nil && @lon_end != nil
 
-					@visual_graph.find_path_for_coordinates(@lat_start, @lon_start, @lat_end, @lon_end)
+					@visual_graph.show_nodes_for_coordinates(@lat_start, @lon_start, @lat_end, @lon_end)
 				end
+
+				@visual_graph.export_graphviz(@out_file) if @out_file != nil
 				return
 			when '--midist'
 				# finds and draws route for vehicle
@@ -149,6 +152,7 @@ class OSMSimpleNav
 				# TODO: show way duration
 				@visual_graph.find_vehicle_path(@lat_start, @lon_start, @lat_end, @lon_end)
 
+				@visual_graph.export_graphviz(@out_file)
 			return
 	      else
 	        usage

@@ -10,6 +10,7 @@ class VisualEdge
   attr_reader :directed
   # Boolean value emphasize character - drawn differently on output (TODO)
   attr_reader :emphesized
+  attr_writer :emphesized
 
   # create instance of +self+ by simple storing of all parameters
   def initialize(edge, v1, v2)

@@ -12,6 +12,12 @@ class VisualVertex
   attr_reader :x
   # Y-axis position of +self+
   attr_reader :y
+  # Indicates selected vertex
+  attr_reader :selected
+  attr_writer :selected
+  # Drawing color
+  attr_reader :color
+  attr_writer :color
 
   # create instance of +self+ by simple storing of all parameters
   def initialize(id, vertex, lat, lon, x, y)

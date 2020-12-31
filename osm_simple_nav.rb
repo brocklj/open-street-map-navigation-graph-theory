@@ -7,15 +7,23 @@ class OSMSimpleNav
 	# Creates an instance of navigation. No input file is specified in this moment.
 	def initialize
 		# register
-		@load_cmds_list = ['--load', '--load-comp']
-		@actions_list = ['--export', '--show-nodes', '--midist']
+		@load_cmds_list = ['--load-undir', '--load-dir' ,'--load-undir-comp', '--load-dir-comp' ]
+		@actions_list = ['--export', '--show-nodes', '--midist-len', '--midist-time', '--center']
 
 		@usage_text = <<-END.gsub(/^ {6}/, '')
 	  	Usage:\truby osm_simple_nav.rb <load_command> <input.IN> <action_command> <output.OUT> 
 	  	\tLoad commands: 
-	  	\t\t --load ... load map from file <input.IN>, IN can be ['DOT']
+		\t\t --load-undir ... load map from file <input.IN>, IN can be ['DOT','OSM']
+		\t\t --load-dir ... load map from file <input.IN>, IN can be ['DOT','OSM']
+		\t\t --load-undir-comp ... load map from file <input.IN>, IN can be ['DOT','OSM']
+		\t\t --load-dir-comp ... load map from file <input.IN>, IN can be ['DOT','OSM']
 	  	\tAction commands: 
-	  	\t\t --export ... export graph into file <output.OUT>, OUT can be ['PDF','PNG','DOT']
+		\t\t --export ... export graph into file <output.OUT>, OUT can be ['PDF','PNG','DOT']
+		\t\t --show-nodes ... export graph into file <output.OUT>, OUT can be ['PDF','PNG','DOT']
+		\t\t --show-nodes ... [<geo lat1 long1> <geo lat2 long2> || <node_from_id> <node_from_id>] marks nodes, export graph into file <output.OUT>, OUT can be ['PDF','PNG']
+		\t\t --midist-len ... [<geo lat1 long1> <geo lat2 long2> || <node_from_id> <node_from_id>] finds shortest way, export graph into file <output.OUT>, OUT can be ['PDF','PNG']
+		\t\t --midist-time ... [<geo lat1 long1> <geo lat2 long2> || <node_from_id> <node_from_id>] finds fastest way, export graph into file <output.OUT>, OUT can be ['PDF','PNG']
+		\t\t --center ... [<geo lat1 long1> <geo lat2 long2> || <node_from_id> <node_from_id>] finds undir graph  center, export graph into file <output.OUT>, OUT can be ['PDF','PNG']
 		END
 	end
 
@@ -57,7 +65,7 @@ class OSMSimpleNav
 		if @operation == '--export'
 		end
 
-		if @operation == '--show-nodes'
+		if @operation == '--show-nodes' || @operation == '--midist-len' || @operation == '--midist-time'
 			if ARGV.length <= 3
 				@id_start = ARGV.shift
 				@id_stop = ARGV.shift
@@ -69,14 +77,6 @@ class OSMSimpleNav
 				@lon_end = ARGV.shift
 			end
 
-		end
-
-		if @operation == '--midist'
-			@lat_start = ARGV.shift
-			@lon_start = ARGV.shift
-
-			@lat_end = ARGV.shift
-			@lon_end = ARGV.shift
 		end
 
 		# load output file
@@ -108,15 +108,16 @@ class OSMSimpleNav
 	end
 
 	# Run navigation according to arguments from command line
-	def run
+	def run				
 		# prepare log and read command line arguments
 		prepare_log
 	    process_args
 
 	    # load graph - action depends on last suffix
-	    #@highway_attributes = ['residential', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified']
+	    # @highway_attributes = ['residential', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified']
 	    @highway_attributes = ['residential', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'unclassified']
-	    #@highway_attributes = ['residential']
+		# @highway_attributes = ['residential']
+		
 		if file_type(@map_file) == "osm" or file_type(@map_file) == "xml" then
 			# load graph
 			load_graph
@@ -146,13 +147,32 @@ class OSMSimpleNav
 
 				@visual_graph.export_graphviz(@out_file) if @out_file != nil
 				return
-			when '--midist'
-				# finds and draws route for vehicle
-				# TODO: consider one-way routes
-				# TODO: show way duration
-				@visual_graph.find_vehicle_path(@lat_start, @lon_start, @lat_end, @lon_end)
+			when '--midist-len'
+				# finds and draws route for vehicle considering length between vertices		
+				v_start = @visual_graph.visual_vertices[@id_start] || @visual_graph._find_close_vertex(@lat_start, @lon_start)
+				v_end = @visual_graph.visual_vertices[@id_stop] || @visual_graph._find_close_vertex(@lat_end, @lon_end)
 
+				@visual_graph.find_vehicle_path(v_start, v_end, 'length')
 				@visual_graph.export_graphviz(@out_file)
+			return
+
+			when '--midist-time'
+				# finds and draws route for vehicle considering drive time between vertices
+				v_start = @visual_graph.visual_vertices[@id_start] || @visual_graph._find_close_vertex(@lat_start, @lon_start)
+				v_end = @visual_graph.visual_vertices[@id_stop] || @visual_graph._find_close_vertex(@lat_end, @lon_end)
+
+				@visual_graph.find_vehicle_path(v_start, v_end, 'time')
+				@visual_graph.export_graphviz(@out_file)
+			return
+
+			when '--center'				
+				if !@load_cmd.start_with?('--load-undir')
+					usage
+					exit 1
+				end
+				@visual_graph.find_center()
+				@visual_graph.export_graphviz(@out_file)
+
 			return
 	      else
 	        usage

@@ -1,6 +1,8 @@
 require 'ruby-graphviz'
 require_relative 'visual_edge'
 require_relative 'visual_vertex'
+require_relative 'dijkstra_performer'
+require_relative 'utils'
 
 # Visual graph storing representation of graph for plotting.
 class VisualGraph
@@ -49,13 +51,13 @@ class VisualGraph
     @visual_edges.each { |edge| 
       penwidth = edge.emphesized ? 5 : 1
 
-      arrowhead = edge.edge.one_way ? "vee arrowsize=3" : "none" 
+      arrowhead = edge.edge.one_way ? "normal arrowsize=0.2" : "none" 
       color = edge.emphesized ? "orange" : "black"  
 
-    	graph_viz_output.add_edges( edge.v1.id, edge.v2.id, {'arrowhead' => "none", 'penwidth' => penwidth, 'color' => color} )
-	  }
-
-    # export to a given format
+    	graph_viz_output.add_edges( edge.v1.id, edge.v2.id, {'arrowhead' => arrowhead, 'penwidth' => penwidth, 'color' => color} )
+    }
+        
+    # export to a given format    
     format_sym = export_filename.slice(export_filename.rindex('.')+1,export_filename.size).to_sym
 
     if !@path_distance.nil? || !@path_time.nil?
@@ -84,8 +86,9 @@ class VisualGraph
     _mark_vertices(start_v, end_v)
   end
 
-  def show_nodes_for_coordinates(lat_start, lon_start, lat_end, lon_end)
-    start_v, end_v = _find_close_vertices(lat_start, lon_start, lat_end, lon_end)
+  def show_nodes_for_coordinates(lat_start, lon_start, lat_end, lon_end)    
+    start_v = _find_close_vertex(lat_start, lon_start)
+    end_v = _find_close_vertex(lat_end, lon_end)
 
     start_v.color = "green"
     end_v.color = "red"
@@ -93,18 +96,18 @@ class VisualGraph
     end_v.selected = true
   end
 
-  def find_vehicle_path(lat_start, lon_start, lat_end, lon_end)
-    start_v, end_v = _find_close_vertices(lat_start, lon_start, lat_end, lon_end)
+  def find_vehicle_path(start_v, end_v, vertex_weight_attr)     
     _mark_vertices(start_v, end_v)
 
-    path = _find_shortest_path(start_v.id, end_v.id)
+    path = _find_shortest_path(start_v.id, end_v.id, vertex_weight_attr)
     dis, time = _process_path(path)
     @path_time = time
     @path_distance = dis
     print "------------------------- \n"
     print "INFO: duration\n"
     print dis.to_s + " meters \n"
-    print time.to_s + " seconds"
+    print time.to_s + " seconds \n"
+    print "------------------------- \n"
   end
 
  def _mark_vertices(start_v, end_v)
@@ -115,7 +118,8 @@ class VisualGraph
 
 end
 
-  # @return path time duration [seconds]
+  # @params path [[vertex, vertex]]
+  # @return distance [meters] time duration [seconds]
   def _process_path(path)
     time = 0.0
     # distance in meters
@@ -124,115 +128,46 @@ end
     path.each do |v1, v2|
       if graph.edge_map[v1] != nil
         v_edge = @graph.edge_map[v1][v2] 
-        v_edge.emphesized = true
-        # converts to m/s
-        max_speed = v_edge.edge.max_speed * 0.27778
-        length = v_edge.edge.length
-        dis += length
-        time += length / max_speed
+        v_edge.emphesized = true                                                       
+        length = v_edge.edge.length   
+        dis += length        
+        time +=  v_edge.edge.time
       end
     end
     return dis.round(2), time.round(2)
   end
-
   
-
-  def _find_close_vertices(lat_start, lon_start, lat_end, lon_end)
-    start_vertex = nil
-    end_vertex = nil
-
-    end_score = Float::INFINITY
-    start_score = Float::INFINITY
+  def _find_close_vertex(lat, lon)    
+    found_vertex = nil
+    
+    score = Float::INFINITY
     
     @visual_vertices.each do |i, v|
       
-      start_result = (v.lon.to_f - lon_start.to_f).abs + (v.lat.to_f - lat_start.to_f).abs
+      result = (v.lon.to_f - lon.to_f).abs + (v.lat.to_f - lat.to_f).abs
 
-      if start_result < start_score
-        start_score = start_result
-        start_vertex = v
-      end
-
-      end_result = (v.lon.to_f - lon_end.to_f).abs + (v.lat.to_f - lat_end.to_f).abs
-      if end_result < end_score
-        end_score = end_result
-        end_vertex = v
-      end    
+      if result < score
+        score = result
+        found_vertex = v
+      end 
   end
 
-  return start_vertex, end_vertex
-  end
-
-
-  # Dijikstra inplementation
-  # @return predecessors
-  def _perform_dijikstra(graph, vertex_start, vertex_end)
-    # collection of vertex ids
-    set = [vertex_start]  
-    predecessors = {}
-    
-    closed = {}
-    vertex_weights = {}
-
-    graph.vertices.each do |key, v|
-      # Set default weights to vertices
-      if vertex_start != key
-        vertex_weights[key] = Float::INFINITY
-      else
-        vertex_weights[key] = 0.0      
-      end
-    end
-
-    # find closest reachable vertex
-    while(!set.empty?)
-      
-      min_dist = Float::INFINITY
-      vertex = vertex_start
-      
-      set.each do |v|
-        if vertex_weights[v] < min_dist
-            min_dist = vertex_weights[v]
-            vertex = v
-        end
-        
-        set.delete(vertex)
-        closed[vertex] = true
-
-        if set.include?(vertex_end)
-          break
-        end
-
-        # refresh vertex weigths
-        graph.vertices.each do |id_v, v|
-          # check whether edge exists
-          if  graph.edge_map[vertex] != nil && graph.edge_map[vertex].has_key?(id_v)
-            if !closed[id_v]
-              if vertex_weights[vertex] + graph.edge_map[vertex][id_v].edge.length < vertex_weights[id_v]
-                vertex_weights[id_v] = vertex_weights[vertex] + graph.edge_map[vertex][id_v].edge.length
-
-                predecessors[id_v] = vertex                
-                
-                set << id_v
-              end
-            end
-          end
-        end
-      end
-    end
-    return predecessors
+  return found_vertex
   end
 
   # @return vertex ids of the shortest path 
- def _find_shortest_path(vertex_start, vertex_end)
-    prev = _perform_dijikstra(@graph, vertex_start, vertex_end)
+ def _find_shortest_path(vertex_start_id, vertex_end_id, vertex_weight_attr)
+    start_timestamp = Time.now
+    print "Running perform_dijkstra: #{start_timestamp} \n"   
+    prev = DijkstraPerformer.perform_dijkstra(@graph, vertex_start_id, vertex_end_id, vertex_weight_attr)
+    print "Ran perform_dijkstra in #{Time.now - start_timestamp} seconds \n"   
 
     path = {}
-    u = vertex_end
-    if prev[u] != nil || u == vertex_start
+    u = vertex_end_id
+    if prev[u] != nil || u == vertex_start_id
       while u != nil
         
         path[prev[u]] = u
-
         u = prev[u]
       end
     end

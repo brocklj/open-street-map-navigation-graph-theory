@@ -107,7 +107,7 @@ class GraphLoader
 
 			# gets value whether is oneway
 			tag_oneway = way_tags.at_css("[@k='oneway']")
-			is_one_way = !tag_oneway.nil? && tag_oneway["v"] == "yes" ?  true : false 						
+			is_one_way = load_cmd.start_with?('--load-dir') && !tag_oneway.nil? && tag_oneway["v"] == "yes" ?  true : false				
 			
 			way_nds = way.xpath("nd")
 			way_nds.count.times do |nd_index| 
@@ -134,7 +134,7 @@ class GraphLoader
 			end
 		end
 
-		if load_cmd == "--load-comp"
+		if load_cmd.end_with?("-comp")
 			list_of_edges, hash_of_vertices = _process_comp(list_of_edges, hash_of_vertices)
 		end
 
@@ -192,7 +192,10 @@ class GraphLoader
 		
 		g = Graph.new(hash_of_vertices, list_of_edges, edge_map)
 		vg = VisualGraph.new(g, hash_of_visual_vertices, list_of_visual_edges, bounds)
-
+		
+		
+		print "Loaded Graph containing #{hash_of_vertices.length} nodes. \n"
+		
 		return g, vg	
 	end
 
@@ -252,7 +255,7 @@ class GraphLoader
 	end
 
 	# Calculates geographical distance between nodes
-	# @return destance in meters 
+	# @return distance in meters 
 	def	_calc_geo_distance(lon1, lat1, lon2, lat2)
 		# Radius of the Earth [km]
 		r = 6371 

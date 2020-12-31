@@ -11,6 +11,8 @@ class Edge
   # Float value of the geographical distance between two vertices
   attr_reader :length
   attr_writer :length
+  # Get time to pass through
+  attr_reader :time
 
   # create instance of +self+ by simple storing of all parameters
   def initialize(v1, v2, max_speed, one_way)
@@ -18,6 +20,10 @@ class Edge
     @v2 = v2
     @max_speed = max_speed
     @one_way = one_way
+  end
+
+  def time 
+    return Utils.get_path_time(@length, @max_speed)
   end
 end
 

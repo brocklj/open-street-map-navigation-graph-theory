@@ -12,7 +12,7 @@ class Graph
   attr_reader :edge_map
 
   # create instance of +self+ by simple storing of all parameters
-  def initialize(vertices, edges, edge_map)
+  def initialize(vertices, edges, edge_map = {})
     @vertices = vertices
     @edges = edges
     @edge_map = edge_map

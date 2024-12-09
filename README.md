@@ -91,6 +91,11 @@ Copy code
 
 -   Ruby (compatible with version `x.y.z` or higher)
 -   Libraries required for graph manipulation and visualization (e.g., `Graphviz`).
+
+### Ruby-graphviz library instalation
+``
+$ gem install ruby-graphviz
+``
 * * *
 
 ## License

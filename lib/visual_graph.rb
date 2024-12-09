@@ -110,6 +110,11 @@ class VisualGraph
     print "------------------------- \n"
   end
 
+  # TODO: Implement graph center searching
+  def find_center
+
+  end
+
  def _mark_vertices(start_v, end_v)
   start_v.color = "green"
   end_v.color = "red"

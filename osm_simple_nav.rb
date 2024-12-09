@@ -170,7 +170,7 @@ class OSMSimpleNav
 					usage
 					exit 1
 				end
-				@visual_graph.find_center()
+				@visual_graph.find_center
 				@visual_graph.export_graphviz(@out_file)
 
 			return

@@ -1,4 +1,4 @@
-# Open Street Maps Simple Navigator   
+# Open Street Map Simple Navigator   
 This project is a simple navigation tool that loads maps from various formats, performs specific actions on the data, and exports the results. The tool supports various input and output formats and provides multiple functionalities, including graph visualization, node marking, shortest path calculations, and more.
 
 
